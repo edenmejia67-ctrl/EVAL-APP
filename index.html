@@ -1,0 +1,175 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Soil Buddy Simulator</title><meta name="theme-color" content="#0a1007">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="../icon-192.png"><link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#0a1007;--s1:#121b0c;--s2:#1b2813;--line:#2a3b1d;--ink:#eef4e2;--mut:#93a584;--lime:#b7f33c;--lime-ink:#10200a;--water:#4cc2ff;--warn:#ffc24b;--bad:#ff6b5b;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;font-variant-numeric:tabular-nums}
+#app{height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button{font:inherit;color:inherit;cursor:pointer}
+.b{min-height:44px;padding:0 12px;border-radius:14px;border:0;border-bottom:4px solid #0d1508;background:var(--s2);font-weight:700;transition:transform .08s}
+.b:active{transform:translateY(2px);border-bottom-width:2px}.b.on{background:var(--lime);color:var(--lime-ink);border-bottom-color:#7da61f}
+.b.warn.on{background:var(--warn);color:#2b1a00;border-bottom-color:#a87a1c}.b.bad.on{background:var(--bad);color:#2b0904;border-bottom-color:#a83b2f}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+#top{display:flex;align-items:center;gap:8px;padding:4px 10px;min-height:52px}
+#top img{width:30px;height:30px}#clock{font-weight:700;white-space:nowrap}
+.hb{flex:1;min-width:70px;height:14px;border-radius:9px;background:var(--s2);border:1px solid var(--line);overflow:hidden}.hb i{display:block;height:100%;width:80%;background:var(--lime);transition:width .3s,background .3s}
+#stage{flex:1;position:relative;min-height:0}canvas{position:absolute;inset:0;width:100%;height:100%}
+#ticker{position:absolute;left:10px;right:10px;bottom:6px;padding:6px 12px;border-radius:12px;background:#0a1007cc;border:1px solid var(--line);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast{position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:90%;padding:8px 14px;border-radius:14px;background:var(--lime);color:var(--lime-ink);font-weight:700;box-shadow:0 4px 16px #0008;z-index:5}
+#toast.ask{background:var(--s1);color:var(--ink);border:1px solid var(--lime);display:flex;gap:8px;align-items:center}#toast.ask .b{min-height:38px}
+#dock{display:flex;gap:8px;padding:6px 10px 8px;overflow-x:auto;scrollbar-width:none}#dock::-webkit-scrollbar{display:none}
+.sw{flex:1 0 auto;min-width:82px;display:flex;flex-direction:column;align-items:center;gap:0;padding:4px 8px;line-height:1.15}.sw span{font-size:20px}.sw small{font-size:11px;opacity:.85}
+.gap{flex:0 0 6px}
+.modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:max(10px,env(safe-area-inset-top)) 10px;z-index:10}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:20px;padding:14px 16px;width:min(620px,100%);max-height:100%;overflow:auto}
+.card h2{margin:0 0 8px;font-size:18px}.mut{color:var(--mut);font-size:13px}
+.m{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.m b{display:block}.star{font-size:22px;filter:grayscale(1) opacity(.35)}.m.done .star{filter:none}
+pre{margin:0;font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;max-height:55vh;overflow:auto;background:#060a04;border-radius:12px;padding:10px;color:#cfe9b0}
+.q{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line)}.q div{display:flex;gap:4px}.q .b{min-width:44px;padding:0}
+textarea,input[type=text]{width:100%;font:inherit;color:var(--ink);background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#rot{position:fixed;inset:0;z-index:20;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px}
+#rot i{font-size:54px;font-style:normal;display:block;animation:tw 1.6s ease-in-out infinite alternate}@keyframes tw{to{transform:rotate(90deg)}}
+@media (orientation:portrait) and (max-width:700px){#rot{display:flex}}
+@media (max-height:420px){#top{min-height:46px}.sw span{font-size:18px}#ticker{font-size:12px;padding:4px 10px}}
+@media (prefers-reduced-motion:reduce){#rot i{animation:none}}
+</style></head><body>
+<div id="app">
+<header id="top"><img src="../logo-mark.svg" alt=""><span id="clock">Day 1</span><div class="hb" title="Plant health"><i id="hp"></i></div>
+<button class="b" id="bSpd" aria-label="Speed">x10</button><button class="b" id="bMis">★ <span id="ms">0</span>/5</button><button class="b" id="bLog">Log</button><button class="b" id="bRate">Rate</button></header>
+<main id="stage"><canvas id="cv"></canvas><div id="toast" hidden></div><div id="ticker">Ready.</div></main>
+<nav id="dock" aria-label="Controls">
+<button class="b sw" id="tAuto"><span>⚙️</span><b>Auto</b><small>ON</small></button>
+<button class="b sw" id="tTest"><span>🚿</span><b>Test pump</b><small>30 s</small></button>
+<button class="b sw" id="tPour"><span>🪴</span><b>Pour water</b><small>+20%</small></button>
+<button class="b sw" id="tRef"><span>🪣</span><b>Refill tank</b><small>4.0 cm</small></button>
+<i class="gap"></i>
+<button class="b sw warn" id="tHot"><span>☀️</span><b>Hot day</b><small>OFF</small></button>
+<button class="b sw warn" id="tDrain"><span>🕳️</span><b>Drain tank</b><small>to 1 cm</small></button>
+<button class="b sw bad" id="tProbe"><span>🔌</span><b>Unplug probe</b><small>OFF</small></button>
+<button class="b sw bad" id="tStuck"><span>⛔</span><b>Pump stuck</b><small>OFF</small></button>
+</nav></div>
+<div id="rot"><i>📱</i><b style="font-size:18px">Turn your phone sideways</b><span class="mut">Soil Buddy Simulator plays in landscape.</span></div>
+<div class="modal" id="mMis" hidden><div class="card"><h2>Missions</h2><div id="mList"></div><div class="row"><button class="b on" data-x="mMis">Back to the plant</button></div></div></div>
+<div class="modal" id="mLog" hidden><div class="card"><h2>Board log</h2><p class="mut">Last data line, same format the app reads: <code>#S,soilIndex,soilAdc,waterCm,waterAdc,mode,pump,demand,guard</code></p><pre id="logTxt"></pre><div class="row"><button class="b on" data-x="mLog">Close</button></div></div></div>
+<div class="modal" id="mDead" hidden><div class="card"><h2>Your plant wilted 🥀</h2><p class="mut">Soil stayed too dry or too soaked for too long. Check the board log to see what the watering rules did.</p><div class="row"><button class="b on" id="bRetry">Try again</button><button class="b" id="bLog2">Open log</button></div></div></div>
+<div class="modal" id="mEval" hidden><div class="card"><h2>Rate this simulator</h2><p class="mut">Takes about a minute. Answers are saved on this device only, no internet needed.</p><div id="qs"></div>
+<div class="q"><span>Would you use it to teach or learn?</span><div id="useQ"></div></div>
+<textarea id="eNote" rows="2" placeholder="What was confusing, missing or fun? (optional)"></textarea><input type="text" id="eName" placeholder="Your name (optional)" autocomplete="off">
+<div class="row"><button class="b on" id="eSave">Save my answers</button><button class="b" data-x="mEval">Not now</button></div>
+<div id="eDone" hidden><p class="mut" id="eCount"></p><div class="row"><button class="b" id="eCopy">Copy results</button><button class="b" id="eDl">Download file</button><button class="b" id="eShare">Share</button><button class="b" id="eNew">New person</button></div></div></div></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),cl=(v,a,b)=>Math.max(a,Math.min(b,v)),rnd=Math.random;
+// Constants copied from SoilBuddyRE firmware v3.5
+const K={START:30,STOP:50,LOW:140,REC:200,CONF:2,MAXRUN:120,REST:60,MINRISE:3,MAXNE:2,TEST:30,DRY:4095,WET:2095,FULL:460,H:4};
+const MIS=[['first','First drink','Let AUTO water the dry plant until it reaches 50%.'],['guard','Guard duty','Make the low-water guard trip (tank under about 1.2 cm).'],['refill','Refill rescue','After the guard trips, refill the tank so AUTO is allowed again.'],['sleuth','Sensor sleuth','Use Pump stuck and wait until AUTO pauses itself.'],['days','Green thumb','Keep the plant alive for 3 days.']];
+let S,D={done:{},evals:[],rated:false},ev={},useA='',play=0,ask=300,lastDay=1;
+try{Object.assign(D,JSON.parse(localStorage.getItem('sbsim')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('sbsim',JSON.stringify(D))}catch(e){}};
+function fresh(){S={T:0,soil:22,tank:4,health:80,pump:false,test:false,auto:true,paused:false,hot:false,probeOff:false,stuck:false,demand:false,latched:false,low:0,rest:false,restAt:0,ne:0,pumpAt:0,runSoil:0,lastSoil:0,sIdx:22,sAdc:0,wAdc:0,wCm:4,speed:S?S.speed:10,dead:false,pour:0,logs:[],hadLatch:false};sense();syncUI();say('Board booted. AUTO is on (like firmware v3.5).')}
+const clock=()=>{const m=Math.floor(S.T%600/600*1440);return 'Day '+(Math.floor(S.T/600)+1)+' · '+String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+function say(t){S.logs.push(clock().slice(-5)+'  '+t);if(S.logs.length>60)S.logs.shift();$('ticker').textContent=t}
+function toast(t,ask){const e=$('toast');e.className=ask?'ask':'';e.hidden=false;e.innerHTML='';if(ask){e.append(t)}else{e.textContent=t;setTimeout(()=>{if(e.textContent===t)e.hidden=true},3500)}return e}
+function mis(k){if(D.done[k])return;D.done[k]=1;save();const m=MIS.find(x=>x[0]==k);toast('★ Mission complete: '+m[1]);$('ms').textContent=Object.keys(D.done).length}
+function sense(){const n=a=>(rnd()-.5)*a;S.sAdc=S.probeOff?4095:Math.round(cl(K.DRY-S.soil/100*(K.DRY-K.WET)+n(30),0,4095));S.sIdx=cl((K.DRY-S.sAdc)/(K.DRY-K.WET)*100,0,100);S.wAdc=Math.round(cl(S.tank/K.H*K.FULL+n(8),0,4095));S.wCm=cl(S.wAdc/K.FULL*K.H,0,K.H)}
+const flow=()=>S.pump&&!S.stuck&&S.tank>.05;
+function startPump(test,why){S.pump=true;S.test=test;S.pumpAt=S.T;S.runSoil=S.sIdx;say(test?'Pump TEST: 30 s, water guard skipped.':'Pump ON. '+why)}
+function stopPump(why){S.pump=false;const t=S.test;S.test=false;say('Pump OFF: '+why);if(!t&&/soil reached/.test(why))mis('first');syncUI()}
+function guardTick(){if(S.latched){if(S.wAdc>=K.REC){S.latched=false;S.low=0;say('Tank OK again (ADC '+S.wAdc+'). AUTO may run.');if(S.hadLatch)mis('refill')}return}
+ if(S.wAdc<K.LOW){S.low=Math.min(S.low+1,K.CONF);if(S.low>=K.CONF){S.latched=true;S.hadLatch=true;say('TANK LOW: ADC '+S.wAdc+' (cutoff '+K.LOW+'). AUTO blocked until ADC '+K.REC+'.');mis('guard')}}else S.low=0}
+function demandTick(){if(S.sIdx<=K.START){if(!S.demand){S.demand=true;say('Soil is dry ('+S.sIdx.toFixed(1)+'%). Watering demand ON.')}}else if(S.sIdx>=K.STOP&&S.demand){S.demand=false;S.rest=false;S.ne=0;say('Soil is wet enough ('+S.sIdx.toFixed(1)+'%). Demand OFF.')}}
+function capRun(){const rise=S.sIdx-S.runSoil;stopPump('max run '+K.MAXRUN+' s (soil '+S.runSoil.toFixed(1)+'% to '+S.sIdx.toFixed(1)+'%).');S.rest=true;S.restAt=S.T;
+ if(rise<K.MINRISE){if(++S.ne>=K.MAXNE){S.auto=false;S.paused=true;say('AUTO PAUSED: '+S.ne+' full runs did not raise the soil. Check probe, tube, pump and pot.');mis('sleuth')}else say('Soil barely changed during that run. If it repeats, AUTO pauses.')}else S.ne=0}
+function autoTick(){guardTick();const due=S.T-S.lastSoil>=10;if(due){S.lastSoil=S.T;demandTick()}
+ if(!S.auto||S.test)return;
+ if(S.pump){if(S.latched)stopPump('TANK LOW. AUTO restarts after a refill.');else if(due&&S.sIdx>=K.STOP)stopPump('soil reached '+S.sIdx.toFixed(1)+'% (stop at '+K.STOP+'%).');return}
+ if(!S.demand||S.latched)return;
+ if(S.rest){if(S.T-S.restAt<K.REST)return;S.rest=false;say('Rest over. Soil still under '+K.STOP+'%, watering again.')}
+ if(S.sIdx<K.STOP)startPump(false,'Runs until soil '+K.STOP+'%, tank low, or '+K.MAXRUN+' s.')}
+function tick(){S.T++;S.soil=Math.max(2,S.soil-(S.hot?.12:.03));
+ if(flow()){S.soil=Math.min(100,S.soil+.55);S.tank=Math.max(0,S.tank-.012)}
+ const h=S.soil;S.health=cl(S.health+(h<15?-.05:h>88?-.03:h>=25&&h<=75?.03:0),0,100);
+ sense();if(S.T%5==0)autoTick();
+ if(S.pump){if(S.test&&S.T-S.pumpAt>=K.TEST)stopPump('30-second test finished.');else if(!S.test&&S.T-S.pumpAt>=K.MAXRUN)capRun()}
+ const d=Math.floor(S.T/600)+1;if(d!=lastDay){lastDay=d;if(d>=4&&S.health>0)mis('days');toast('Day '+d+' · plant health '+Math.round(S.health)+'%')}
+ if(S.health<=0&&!S.dead){S.dead=true;say('The plant wilted.');$('mDead').hidden=false}}
+// ---------- UI ----------
+const sw=(id,on,txt)=>{const b=$(id);b.classList.toggle('on',!!on);if(txt)b.querySelector('small').textContent=txt};
+function syncUI(){sw('tAuto',S.auto,S.auto?'ON':S.paused?'PAUSED':'OFF');sw('tTest',S.test);sw('tHot',S.hot,S.hot?'ON':'OFF');sw('tProbe',S.probeOff,S.probeOff?'ON':'OFF');sw('tStuck',S.stuck,S.stuck?'ON':'OFF');$('bSpd').textContent='x'+S.speed;$('ms').textContent=Object.keys(D.done).length}
+$('tAuto').onclick=()=>{S.auto=!S.auto;S.paused=false;S.ne=0;say(S.auto?'AUTO enabled.':'AUTO off.');if(!S.auto&&S.pump&&!S.test)stopPump('AUTO turned off.');syncUI()};
+$('tTest').onclick=()=>{if(S.pump){stopPump('manual stop.')}else startPump(true);syncUI()};
+$('tPour').onclick=()=>{S.soil=Math.min(100,S.soil+20);S.pour=1.2;say('You poured water on the pot.')};
+$('tRef').onclick=()=>{S.tank=K.H;say('Tank refilled to 4.0 cm.')};
+$('tDrain').onclick=()=>{S.tank=Math.min(S.tank,1);say('Tank drained to about 1 cm.')};
+$('tHot').onclick=()=>{S.hot=!S.hot;say(S.hot?'Hot day: soil dries 4x faster.':'Normal weather.');syncUI()};
+$('tProbe').onclick=()=>{S.probeOff=!S.probeOff;say(S.probeOff?'Probe unplugged. ADC reads 4095, which looks like 0% dry.':'Probe plugged in.');syncUI()};
+$('tStuck').onclick=()=>{S.stuck=!S.stuck;say(S.stuck?'Pump stuck: it runs but no water moves.':'Pump freed.');syncUI()};
+$('bSpd').onclick=()=>{S.speed=S.speed==1?10:S.speed==10?60:1;syncUI()};
+const open=id=>$(id).hidden=false;document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>$(b.dataset.x).hidden=true);
+$('bMis').onclick=()=>{$('mList').innerHTML=MIS.map(m=>'<div class="m'+(D.done[m[0]]?' done':'')+'"><span class="star">★</span><div><b>'+m[1]+'</b><span class="mut">'+m[2]+'</span></div></div>').join('');open('mMis')};
+const showLog=()=>{$('mDead').hidden=true;$('logTxt').textContent='#S,'+Math.round(S.sIdx)+','+S.sAdc+','+S.wCm.toFixed(1)+','+S.wAdc+','+(S.test?2:S.auto?1:0)+','+(S.pump?1:0)+','+(S.demand?1:0)+','+(S.latched?1:0)+'\n\n'+S.logs.slice().reverse().join('\n');open('mLog')};
+$('bLog').onclick=showLog;$('bLog2').onclick=showLog;$('bRetry').onclick=()=>{$('mDead').hidden=true;lastDay=1;fresh()};
+// ---------- evaluation ----------
+const Q=[['ease','Easy to use'],['real','Matches the real device'],['fun','Fun to play'],['learn','Helped me understand the watering rules']];
+$('qs').innerHTML=Q.map(q=>'<div class="q"><span>'+q[1]+'</span><div data-q="'+q[0]+'">'+[1,2,3,4,5].map(n=>'<button class="b" data-n="'+n+'" aria-label="'+q[1]+' '+n+' of 5">'+n+'</button>').join('')+'</div></div>').join('');
+$('useQ').innerHTML=['Yes','Maybe','No'].map(t=>'<button class="b" data-u="'+t+'">'+t+'</button>').join('');
+$('qs').onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;const g=b.parentNode;ev[g.dataset.q]=+b.dataset.n;[...g.children].forEach(x=>x.classList.toggle('on',x==b))};
+$('useQ').onclick=e=>{const b=e.target.closest('[data-u]');if(!b)return;useA=b.dataset.u;[...$('useQ').children].forEach(x=>x.classList.toggle('on',x==b))};
+const openEval=()=>{$('toast').hidden=true;open('mEval')};$('bRate').onclick=openEval;
+const evText=()=>D.evals.map((r,i)=>(i+1)+'. '+(r.name||'anonymous')+' | ease '+r.ease+' real '+r.real+' fun '+r.fun+' learn '+r.learn+' | use: '+(r.use||'-')+' | missions '+r.missions+'/5 | '+(r.note||'')).join('\n');
+$('eSave').onclick=()=>{if(Q.some(q=>!ev[q[0]])){toast('Tap a number from 1 to 5 on every row.');return}
+ D.evals.push(Object.assign({},ev,{use:useA,note:$('eNote').value.trim(),name:$('eName').value.trim(),missions:Object.keys(D.done).length,play:Math.round(play),at:new Date().toISOString()}));D.rated=true;save();$('eDone').hidden=false;$('eCount').textContent='Thank you! '+D.evals.length+' response'+(D.evals.length>1?'s':'')+' saved on this device.';$('eSave').hidden=true};
+$('eNew').onclick=()=>{ev={};useA='';$('eNote').value=$('eName').value='';document.querySelectorAll('#mEval .on').forEach(x=>x!=$('eSave')&&x.classList.remove('on'));$('eDone').hidden=true;$('eSave').hidden=false};
+$('eCopy').onclick=async()=>{try{await navigator.clipboard.writeText(evText());toast('Results copied.')}catch(e){toast('Copy not allowed here. Use Download file.')}};
+$('eDl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D.evals,null,1)],{type:'application/json'}));a.download='soil_buddy_sim_ratings.json';a.click()};
+$('eShare').onclick=()=>{if(navigator.share)navigator.share({title:'Soil Buddy Simulator ratings',text:evText()}).catch(()=>{});else toast('Sharing is not available. Use Copy or Download.')};
+setInterval(()=>{if(!$('mEval').hidden||!$('mDead').hidden)return;play++;if(!D.rated&&(play>=ask||Object.keys(D.done).length>=2)&&$('toast').hidden){ask=play+300;const t=toast('Enjoying it? Tell us what you think.',true);
+ const y=document.createElement('button'),n=document.createElement('button');y.className=n.className='b';y.textContent='Rate';n.textContent='Later';y.onclick=openEval;n.onclick=()=>t.hidden=true;t.append(y,n)}},1000);
+// ---------- drawing ----------
+const cv=$('cv'),cx=cv.getContext('2d');
+const mix=(a,b,k)=>{const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const x=p(a),y=p(b);return 'rgb('+x.map((v,i)=>Math.round(v+(y[i]-v)*k)).join(',')+')'};
+function size(){const d=devicePixelRatio||1;cv.width=cv.clientWidth*d;cv.height=cv.clientHeight*d}addEventListener('resize',size);
+const TUBE=[[627,232],[627,92],[130,92],[130,190]];
+function onTube(p){let L=[],t=0;for(let i=0;i<3;i++){const l=Math.hypot(TUBE[i+1][0]-TUBE[i][0],TUBE[i+1][1]-TUBE[i][1]);L.push(l);t+=l}let d=p*t;for(let i=0;i<3;i++){if(d<=L[i]){const k=d/L[i];return[TUBE[i][0]+(TUBE[i+1][0]-TUBE[i][0])*k,TUBE[i][1]+(TUBE[i+1][1]-TUBE[i][1])*k]}d-=L[i]}return TUBE[3]}
+const txt=(s,x,y,sz,c,a)=>{cx.font='600 '+sz+'px system-ui,sans-serif';cx.fillStyle=c;cx.textAlign=a||'center';cx.fillText(s,x,y)};
+const line=(pts,c,w)=>{cx.beginPath();cx.moveTo(...pts[0]);pts.slice(1).forEach(p=>cx.lineTo(...p));cx.strokeStyle=c;cx.lineWidth=w;cx.lineJoin='round';cx.stroke()};
+function draw(t){const W=cv.width,H=cv.height,s=Math.min(W/820,(H-44*(devicePixelRatio||1))/300);cx.setTransform(1,0,0,1,0,0);cx.clearRect(0,0,W,H);cx.setTransform(s,0,0,s,(W-820*s)/2,Math.max(4,(H-44*(devicePixelRatio||1)-300*s)/2));
+ cx.fillStyle='#16230e';cx.fillRect(-300,250,1500,200);line([[-300,250],[1200,250]],'#2a3b1d',3);
+ const hl=S.health/100,wet=S.soil/100,sway=Math.sin(t/700)*2*hl;
+ // wires + tube
+ line([[176,194],[250,170],[300,215],[330,205]],'#f2c200',2);line([[490,210],[600,150],[700,100],[742,140]],'#00acc1',2);line([[440,250],[540,262],[612,246]],'#d32f2f',2);
+ line(TUBE,'#cfe9ff55',6);
+ // pot
+ cx.fillStyle='#b8643a';cx.beginPath();cx.moveTo(80,205);cx.lineTo(180,205);cx.lineTo(164,250);cx.lineTo(96,250);cx.fill();cx.fillStyle='#cf7b4c';cx.fillRect(74,196,112,12);
+ cx.fillStyle=mix('#d2b48c','#3b2a1f',wet);cx.beginPath();cx.ellipse(130,197,50,6,0,0,7);cx.fill();
+ const sh=28+hl*85,lc=mix('#a08a3a','#4fae3e',hl),dr=(1-hl)*1.1;line([[130,197],[130+sway,197-sh]],mix('#8a7a3a','#5aa84a',hl),5);
+ [-1,1].forEach(d=>{cx.save();cx.translate(130+sway,197-sh);cx.rotate(d*(.45+dr));cx.fillStyle=lc;cx.beginPath();cx.ellipse(d*(14+hl*6),0,16+hl*14,7+hl*3,0,0,7);cx.fill();cx.restore()});
+ // probe
+ cx.fillStyle='#d9b24c';cx.fillRect(156,206,4,36);cx.fillRect(164,206,4,36);cx.fillStyle=S.probeOff?'#555':'#2a63d6';cx.fillRect(150,182,24,22);txt(S.probeOff?'unplugged':'probe',162,176,10,S.probeOff?'#ff6b5b':'#93a584');
+ if(S.pour>0){S.pour-=.016;for(let k=0;k<6;k++){const y=60+((t/4+k*40)%140);cx.fillStyle='#4cc2ff';cx.beginPath();cx.arc(100+k*12,y,3,0,7);cx.fill()}}
+ // board
+ cx.fillStyle='#1b6b3a';cx.beginPath();cx.roundRect(330,150,160,100,10);cx.fill();cx.fillStyle='#1a2236';cx.fillRect(344,164,54,34);txt('ESP32',371,185,11,'#8fa3c8');
+ cx.fillStyle='#0d1a10';cx.fillRect(408,160,72,44);txt(S.sIdx.toFixed(0)+'%',444,184,22,'#b7f33c');txt('tank '+S.wCm.toFixed(1)+' cm',444,198,10,'#4cc2ff');
+ [[352,'AUTO',S.auto,'#b7f33c'],[384,'PUMP',S.pump,'#4cc2ff'],[416,'TANK',S.latched,'#ff6b5b'],[448,'REST',S.rest||S.paused,'#ffc24b']].forEach(([x,n,on,c])=>{cx.fillStyle=on?c:'#0d1a10';cx.beginPath();cx.arc(x,224,6,0,7);cx.fill();txt(n,x,242,9,'#cfe9b0')});
+ if(S.paused)txt('AUTO PAUSED',410,140,13,'#ffc24b');else if(S.demand&&S.auto)txt('needs water',410,140,12,'#b7f33c');
+ // tank
+ const th=120,wh=S.tank/K.H*th;cx.fillStyle='#4cc2ffbb';cx.fillRect(590,250-wh,140,wh);cx.strokeStyle='#9fd9ff';cx.lineWidth=3;cx.strokeRect(590,130,140,120);
+ for(let k=1;k<=4;k++){line([[590,250-k*30],[600,250-k*30]],'#9fd9ff',2);txt(k+'',580,254-k*30,10,'#93a584','right')}
+ cx.setLineDash([6,4]);line([[590,214],[730,214]],'#ff6b5b',2);line([[590,199],[730,199]],'#ffc24b',1.5);cx.setLineDash([]);txt('cutoff 1.2',700,210,10,'#ff6b5b');
+ cx.fillStyle='#c62828';cx.fillRect(736,125,12,125);for(let k=0;k<9;k++){cx.fillStyle='#d9b24c';cx.fillRect(738,132+k*13,8,3)}
+ cx.fillStyle=flow()?'#0a8f55':'#37474f';cx.beginPath();cx.roundRect(610,232,34,18,4);cx.fill();
+ if(S.latched)txt('LOW WATER: AUTO BLOCKED',660,118,12,'#ff6b5b');
+ if(flow())for(let k=0;k<8;k++){const p=onTube(((t/1100)+k/8)%1);cx.fillStyle='#4cc2ff';cx.beginPath();cx.arc(p[0],p[1],3.5,0,7);cx.fill()}
+ txt('Plant + soil probe',130,274,12,'#93a584');txt('ESP32 board',410,274,12,'#93a584');txt('Tank, HW-038 and pump',660,274,12,'#93a584')}
+// ---------- loop ----------
+let last=performance.now(),acc=0;
+function loop(n){requestAnimationFrame(loop);const dt=Math.min(.25,(n-last)/1000);last=n;if($('mDead').hidden&&!S.dead){acc+=dt*S.speed;let g=0;while(acc>=1&&g++<120){tick();acc-=1}}
+ $('clock').textContent=clock();const hp=$('hp');hp.style.width=S.health+'%';hp.style.background=S.health<30?'var(--bad)':S.health<55?'var(--warn)':'var(--lime)';draw(n)}
+fresh();size();$('ms').textContent=Object.keys(D.done).length;requestAnimationFrame(loop);
+addEventListener('pointerdown',()=>{try{if(screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: standalone)').matches)screen.orientation.lock('landscape').catch(()=>{})}catch(e){}},{once:true});
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script></body></html>
